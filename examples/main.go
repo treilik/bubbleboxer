@@ -23,34 +23,20 @@ func main() {
 	main.AddItems([]fmt.Stringer{stringer(mainAddr)})
 	out.AddItems([]fmt.Stringer{stringer(outAddr)})
 
-	content := make(map[string]tea.Model)
-	content[inAddr] = in
-	content[mainAddr] = main
-	content[outAddr] = out
-	p := tea.NewProgram(
-		model{
-			tui: boxer.Boxer{
-				ContentMap: content,
-				Root: boxer.Node{
-					Children: []boxer.Node{
-						{
-							Children: []boxer.Node{
-								{
-									Address: inAddr,
-								},
-								{
-									Address: mainAddr,
-								},
-							},
-						},
-						{
-							Address: outAddr,
-						},
-					},
+	m := model{tui: boxer.Boxer{}}
+	m.tui.LayoutTree = boxer.Node{
+		Children: []boxer.Node{
+			{
+				VerticalStacked: true,
+				Children: []boxer.Node{
+					m.tui.CreateLeaf(inAddr, in),
+					m.tui.CreateLeaf(mainAddr, main),
 				},
 			},
+			m.tui.CreateLeaf(outAddr, out),
 		},
-	)
+	}
+	p := tea.NewProgram(m)
 	p.Start()
 }
 
@@ -67,7 +53,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case tea.WindowSizeMsg:
-		m.tui.UpdateSize(msg.Width, msg.Height)
+		m.tui.UpdateSize(msg)
 	}
 	return m, nil
 }
