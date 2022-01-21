@@ -13,33 +13,60 @@ const (
 	space   = " "
 )
 
-// Boxer is a root node of a layout tree and holds all the content of the leafs
+// Boxer is a way to render multiple tea.Model's in a specific layout
+// according to a LayoutTree.
+// The Model's are kept separate from the LayoutTree
+// so that changing a Model does not require traversing the LayoutTree.
 type Boxer struct {
-	Root       Node
-	ContentMap map[string]tea.Model
+	// HandleMsg controls if update panics or not if its receiving a Msg
+	// this is done to make you aware that you should handle all Msg yourself
+	// except you know what the Update function does, in this case set HandleMsg to true.
+	HandleMsg bool
+
+	// LayoutTree holds the root node and thus the hole LayoutTree
+	// Change it as you like as long as every node without children was
+	// created with CreateLeaf (to make sure that every leave has a corresponding ModelMap entry)
+	// After deleting a Leaf delete the corresponding entry from ModelMap if you care about memory-leaks
+	LayoutTree Node
+
+	// ModelMap is a mapping between the Address of a Leaf and the according Model.
+	// A valid entry can only be created with CreateLeaf,
+	// because entries without a corresponding Node in the LayoutTree are meaningless.
+	ModelMap map[string]tea.Model
 }
 
-// Node is a node in a layout tree and if it has a address it's a leaf
+// Node is a node in a layout tree or when created with CreateLeaf its a valid leave of the LayoutTree
 type Node struct {
-	Address  string
 	Children []Node
 
+	// VerticalStacked specifies the orientation of the Children to each other
 	VerticalStacked bool
+
+	// address is private so that it can only be set if a corresponding entry in Boxer.ModelMap is created (see CreateLeaf)
+	address string
 
 	width  int
 	height int
 }
 
-// Init satisfiys the tea.Model interface
+// Init satisfies the tea.Model interface
 func (b Boxer) Init() tea.Cmd { return nil }
 
+// Update panics if HandleMsg is false.
+// Otherwise Update reacts to WindowSizeMsg and ctrl+c
 func (b Boxer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// TODO handle empty map, zero area
+	if !b.HandleMsg {
+		panic(fmt.Sprintf(`Received Msg: '%s'
+but 'HandleMsg' was not set to true.
+
+Either handle all the Msg yourself, so that no Msg reaches this Function
+or explicitly set 'HandleMsg' to true, if you know what this does.`, msg))
+	}
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "q", "ctrl+c":
+		case "ctrl+c":
 			return b, tea.Quit
 		}
 	case tea.WindowSizeMsg:
@@ -49,38 +76,40 @@ func (b Boxer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return b, nil
 }
 
+// View renders the contained tea.Model's according to the LayoutTree
 func (b Boxer) View() string {
-	if b.Root.width <= 0 || b.Root.height <= 0 {
+	if b.LayoutTree.width <= 0 || b.LayoutTree.height <= 0 {
 		return "waiting for size information"
 	}
-	return strings.Join(b.Root.render(b.ContentMap), newline)
+	return strings.Join(b.LayoutTree.render(b.ModelMap), newline)
 }
 
-func (n *Node) render(leafContent map[string]tea.Model) []string {
-	if n.Address != "" {
+// render recursively renders the layout tree with the models contained in leafModels
+func (n *Node) render(leafModels map[string]tea.Model) []string {
+	if n.address != "" {
 		// is leaf
-		v, ok := leafContent[n.Address]
+		v, ok := leafModels[n.address]
 		if !ok {
-			panic(fmt.Sprintf("address '%s' not found", n.Address))
+			panic(fmt.Sprintf("address '%s' not found", n.address))
 		}
 		return strings.Split(v.View(), newline)
 	}
 
 	// is node
 	if n.VerticalStacked {
-		return n.renderVertical(leafContent)
+		return n.renderVertical(leafModels)
 	}
-	return n.renderHorizontal(leafContent)
+	return n.renderHorizontal(leafModels)
 }
 
-func (n *Node) renderVertical(leafContent map[string]tea.Model) []string {
+func (n *Node) renderVertical(leafModels map[string]tea.Model) []string {
 	if len(n.Children) == 0 {
 		panic("no children to render - this node should be a leaf or should not exist")
 	}
 	boxes := make([]string, 0, n.height)
 	targetWidth := n.width
 	for _, child := range n.Children {
-		lines := child.render(leafContent)
+		lines := child.render(leafModels)
 		if len(lines) > child.height {
 			panic("content has to much lines")
 		}
@@ -101,7 +130,7 @@ func (n *Node) renderVertical(leafContent map[string]tea.Model) []string {
 	return boxes
 
 }
-func (n *Node) renderHorizontal(leafContent map[string]tea.Model) []string {
+func (n *Node) renderHorizontal(leafModels map[string]tea.Model) []string {
 	if len(n.Children) == 0 {
 		panic("no children to render - this node should be a leaf or should not exist")
 	}
@@ -115,7 +144,7 @@ func (n *Node) renderHorizontal(leafContent map[string]tea.Model) []string {
 			panic("inconsistent size information: child is bigger than parent")
 		}
 
-		lines := boxer.render(leafContent)
+		lines := boxer.render(leafModels)
 
 		if len(lines) > targetHeigth {
 			panic("content has to much lines")
@@ -152,30 +181,38 @@ func (n *Node) renderHorizontal(leafContent map[string]tea.Model) []string {
 
 }
 
-// UpdateSize set the width and height of all
+// UpdateSize set the width and height of all Node's
+// UpdateSize panics if
+//   - the area (width*height) is <= 0
+//   - a leaf has children
+//   - a leaf as a address without a model in the ModelMap
+//   - a Node (not a leaf) has no Children
 func (b *Boxer) UpdateSize(width, height int) {
 	if width <= 0 || height <= 0 {
 		panic("wont set area to zero or negative")
 	}
-	b.Root.updateSize(width, height, b.ContentMap)
+	b.LayoutTree.updateSize(width, height, b.ModelMap)
 }
 
-// recursive seting of the height and width according to the orientation and the amount of children
+// recursive setting of the height and width according to the orientation and the amount of children
 func (n *Node) updateSize(width, height int, content map[string]tea.Model) {
 	if width <= 0 || height <= 0 {
 		panic("wont set area to zero or negative")
 	}
 	n.width, n.height = width, height
-	if n.Address != "" {
+	if n.address != "" {
 		// is leaf
+		if len(n.Children) != 0 {
+			panic("a leaf should not have Children")
+		}
 
-		v, ok := content[n.Address]
+		v, ok := content[n.address]
 		if !ok {
-			panic(fmt.Sprintf("no model with address '%s' found", n.Address))
+			panic(fmt.Sprintf("no model with address '%s' found", n.address))
 		}
 		// tell content its size
 		v, _ = v.Update(tea.WindowSizeMsg{Width: width, Height: height})
-		content[n.Address] = v
+		content[n.address] = v
 		return
 	}
 	// is node
@@ -190,4 +227,31 @@ func (n *Node) updateSize(width, height int, content map[string]tea.Model) {
 		c.updateSize(width/length, height, content)
 		n.Children[i] = c
 	}
+}
+
+// CreateLeaf is the only way to create a Node which is treated as a Leaf in the layout-tree.
+// CreateLeaf panics when either address is the empty string or the model is nil.
+func (b *Boxer) CreateLeaf(address string, model tea.Model) tea.Model {
+	if address == "" {
+		panic("address should not be empty")
+	}
+	if model == nil {
+		panic("model should not be nil")
+	}
+	if b.ModelMap == nil {
+		b.ModelMap = make(map[string]tea.Model)
+	}
+	b.ModelMap[address] = model
+	return model
+}
+
+// IsLeaf returns if the node is a leaf.
+func (n *Node) IsLeaf() bool {
+	return n.address != ""
+}
+
+// GetAddress returns the Address of the Node
+// The address of a Node is only settable through CreateLeaf
+func (n *Node) GetAddress() string {
+	return n.address
 }
