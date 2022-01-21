@@ -9,31 +9,44 @@ import (
 )
 
 const (
-	inAddr   = "in"
-	mainAddr = "main"
-	outAddr  = "out"
+	upperAddr  = "upper"
+	leftAddr   = "left"
+	middleAddr = "middle"
+	rightAddr  = "right"
 )
 
 func main() {
-	in := list.NewModel()
-	main := list.NewModel()
-	out := list.NewModel()
+	upper := list.NewModel()
+	left := list.NewModel()
+	middle := list.NewModel()
+	right := list.NewModel()
 
-	in.AddItems([]fmt.Stringer{stringer(inAddr)})
-	main.AddItems([]fmt.Stringer{stringer(mainAddr)})
-	out.AddItems([]fmt.Stringer{stringer(outAddr)})
+	upper.AddItems([]fmt.Stringer{stringer("use 'ctrl+c' or 'q' to quit")})
+	left.AddItems([]fmt.Stringer{stringer(leftAddr)})
+	middle.AddItems([]fmt.Stringer{
+		stringer(middleAddr),
+	})
+	right.AddItems([]fmt.Stringer{stringer(rightAddr)})
 
 	m := model{tui: boxer.Boxer{}}
+
 	m.tui.LayoutTree = boxer.Node{
+		VerticalStacked: true,
+		SizeFunc: func(_ boxer.Node, msg tea.WindowSizeMsg) []tea.WindowSizeMsg {
+			return []tea.WindowSizeMsg{
+				{Height: msg.Height - 1, Width: msg.Width},
+				{Height: 1, Width: msg.Width},
+			}
+		},
 		Children: []boxer.Node{
 			{
-				VerticalStacked: true,
 				Children: []boxer.Node{
-					m.tui.CreateLeaf(inAddr, in),
-					m.tui.CreateLeaf(mainAddr, main),
+					m.tui.CreateLeaf(leftAddr, left),
+					m.tui.CreateLeaf(middleAddr, middle),
+					m.tui.CreateLeaf(rightAddr, right),
 				},
 			},
-			m.tui.CreateLeaf(outAddr, out),
+			m.tui.CreateLeaf(upperAddr, upper),
 		},
 	}
 	p := tea.NewProgram(m)

@@ -239,14 +239,14 @@ func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model)
 		height := size.Height
 
 		// hold devision remainder (rest)
-		restWidth := n.width - width
+		restWidth := n.width % length
 		var restHeight int
 
 		if n.VerticalStacked {
 			width = size.Width
 			height = size.Height / length
 
-			restHeight = n.height - height
+			restHeight = n.height % length
 			restWidth = 0
 		}
 
