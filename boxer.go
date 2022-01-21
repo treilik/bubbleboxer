@@ -13,13 +13,13 @@ const (
 	space   = " "
 )
 
-// Boxer is a root node of a layout tree and holds all the content of the leaves
+// Boxer is a root node of a layout tree and holds all the content of the leafs
 type Boxer struct {
 	Root       Node
 	ContentMap map[string]tea.Model
 }
 
-// Node is a node in a layout tree and if it has a address it's a leave
+// Node is a node in a layout tree and if it has a address it's a leaf
 type Node struct {
 	Address  string
 	Children []Node
@@ -33,7 +33,6 @@ type Node struct {
 // Init satisfiys the tea.Model interface
 func (b Boxer) Init() tea.Cmd { return nil }
 
-// Update satisfys the tea.Model interface
 func (b Boxer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// TODO handle empty map, zero area
 
@@ -44,13 +43,12 @@ func (b Boxer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return b, tea.Quit
 		}
 	case tea.WindowSizeMsg:
-		b.updateSize(msg.Width, msg.Height)
+		b.UpdateSize(msg.Width, msg.Height)
 		return b, nil
 	}
 	return b, nil
 }
 
-// View satisfiys the tea.Model interface
 func (b Boxer) View() string {
 	if b.Root.width <= 0 || b.Root.height <= 0 {
 		return "waiting for size information"
@@ -58,10 +56,10 @@ func (b Boxer) View() string {
 	return strings.Join(b.Root.render(b.ContentMap), newline)
 }
 
-func (n *Node) render(leaveContent map[string]tea.Model) []string {
+func (n *Node) render(leafContent map[string]tea.Model) []string {
 	if n.Address != "" {
-		// is leave
-		v, ok := leaveContent[n.Address]
+		// is leaf
+		v, ok := leafContent[n.Address]
 		if !ok {
 			panic(fmt.Sprintf("address '%s' not found", n.Address))
 		}
@@ -70,19 +68,19 @@ func (n *Node) render(leaveContent map[string]tea.Model) []string {
 
 	// is node
 	if n.VerticalStacked {
-		return n.renderVertical(leaveContent)
+		return n.renderVertical(leafContent)
 	}
-	return n.renderHorizontal(leaveContent)
+	return n.renderHorizontal(leafContent)
 }
 
-func (n *Node) renderVertical(leaveContent map[string]tea.Model) []string {
+func (n *Node) renderVertical(leafContent map[string]tea.Model) []string {
 	if len(n.Children) == 0 {
-		panic("no children to render - this node should be a leave or should not exist")
+		panic("no children to render - this node should be a leaf or should not exist")
 	}
 	boxes := make([]string, 0, n.height)
 	targetWidth := n.width
 	for _, child := range n.Children {
-		lines := child.render(leaveContent)
+		lines := child.render(leafContent)
 		if len(lines) > child.height {
 			panic("content has to much lines")
 		}
@@ -103,9 +101,9 @@ func (n *Node) renderVertical(leaveContent map[string]tea.Model) []string {
 	return boxes
 
 }
-func (n *Node) renderHorizontal(leaveContent map[string]tea.Model) []string {
+func (n *Node) renderHorizontal(leafContent map[string]tea.Model) []string {
 	if len(n.Children) == 0 {
-		panic("no children to render - this node should be a leave or should not exist")
+		panic("no children to render - this node should be a leaf or should not exist")
 	}
 	//            y  x
 	var joinedStr [][]string
@@ -117,7 +115,7 @@ func (n *Node) renderHorizontal(leaveContent map[string]tea.Model) []string {
 			panic("inconsistent size information: child is bigger than parent")
 		}
 
-		lines := boxer.render(leaveContent)
+		lines := boxer.render(leafContent)
 
 		if len(lines) > targetHeigth {
 			panic("content has to much lines")
@@ -128,14 +126,14 @@ func (n *Node) renderHorizontal(leaveContent map[string]tea.Model) []string {
 		joinedStr = append(joinedStr, lines)
 	}
 
-	lenght := len(joinedStr)
+	length := len(joinedStr)
 	// Join the horizontal lines together
 	var allStr []string
 	// y
 	for c := 0; c < targetHeigth; c++ {
-		fullLine := make([]string, 0, lenght)
+		fullLine := make([]string, 0, length)
 		// x
-		for i := 0; i < lenght; i++ {
+		for i := 0; i < length; i++ {
 			boxWidth := n.Children[i].width
 			line := joinedStr[i][c]
 			lineWidth := ansi.PrintableRuneWidth(line)
@@ -154,33 +152,42 @@ func (n *Node) renderHorizontal(leaveContent map[string]tea.Model) []string {
 
 }
 
-func (b *Boxer) updateSize(width, height int) {
+// UpdateSize set the width and height of all
+func (b *Boxer) UpdateSize(width, height int) {
 	if width <= 0 || height <= 0 {
 		panic("wont set area to zero or negative")
 	}
-	b.Root.updateSize(width, height)
+	b.Root.updateSize(width, height, b.ContentMap)
 }
 
 // recursive seting of the height and width according to the orientation and the amount of children
-func (n *Node) updateSize(width, height int) {
+func (n *Node) updateSize(width, height int, content map[string]tea.Model) {
 	if width <= 0 || height <= 0 {
 		panic("wont set area to zero or negative")
 	}
 	n.width, n.height = width, height
 	if n.Address != "" {
-		// is leave
+		// is leaf
+
+		v, ok := content[n.Address]
+		if !ok {
+			panic(fmt.Sprintf("no model with address '%s' found", n.Address))
+		}
+		// tell content its size
+		v, _ = v.Update(tea.WindowSizeMsg{Width: width, Height: height})
+		content[n.Address] = v
 		return
 	}
 	// is node
-	lenght := len(n.Children)
-	if lenght == 0 {
-		panic("no children to render - this node should be a leave or should not exist")
+	length := len(n.Children)
+	if length == 0 {
+		panic("no children to render - this node should be a leaf or should not exist")
 	}
 	for i, c := range n.Children {
 		if n.VerticalStacked {
-			c.updateSize(width, height/lenght)
+			c.updateSize(width, height/length, content)
 		}
-		c.updateSize(width/lenght, height)
+		c.updateSize(width/length, height, content)
 		n.Children[i] = c
 	}
 }
