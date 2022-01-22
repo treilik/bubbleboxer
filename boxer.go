@@ -88,7 +88,7 @@ func (b Boxer) View() string {
 	return strings.Join(b.LayoutTree.render(b.ModelMap), newline)
 }
 
-// render recursively renders the layout tree with the models contained in modelMap
+// render recursively renders the layout tree with the models contained in ModelMap
 func (n *Node) render(modelMap map[string]tea.Model) []string {
 	if n.address != "" {
 		// is leaf
@@ -193,8 +193,8 @@ func (n *Node) renderHorizontal(modelMap map[string]tea.Model) []string {
 //   - a leaf has a address without a model in the ModelMap (because it was deleted)
 //   - a Node (not a leaf) has no Children
 //
-//   - the SizeFunc returned a slice with differnt lenght compared to the ize of the Children
-//   - the combined area of the children WindowsizeMsg's is greater than the parent area.
+//   - the SizeFunc returned a slice with different length compared to the size of the Children
+//   - the combined area of the children WindowSizeMsg's is greater than the parent area.
 func (b *Boxer) UpdateSize(size tea.WindowSizeMsg) {
 	if size.Width <= 0 || size.Height <= 0 {
 		panic("wont set area to zero or negative")
@@ -238,7 +238,7 @@ func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model)
 		width := size.Width / length
 		height := size.Height
 
-		// hold devision remainder (rest)
+		// hold division remainder (rest)
 		restWidth := n.width % length
 		var restHeight int
 
@@ -294,7 +294,7 @@ func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model)
 
 	// the sum of the children size can not be bigger than the parent size
 	if n.VerticalStacked && heightSum > n.height {
-		panic("SizeFunc spread more hieght than it can")
+		panic("SizeFunc spread more height than it can")
 	}
 	if widthSum > n.width {
 		panic("SizeFunc spread more width than it can")
