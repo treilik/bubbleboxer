@@ -9,8 +9,10 @@ import (
 )
 
 const (
-	newline = "\n"
-	space   = " "
+	newline             = "\n"
+	space               = " "
+	horizontalSeparator = "|"
+	verticalSeparator   = "-"
 )
 
 // Boxer is a way to render multiple tea.Model's in a specific layout
@@ -45,6 +47,9 @@ type Node struct {
 
 	// SizeFunc specifies the size provided to each child
 	SizeFunc func(node Node, msg tea.WindowSizeMsg) []tea.WindowSizeMsg
+
+	// noBorder is private because when it changes, the descendants size has to be changed as well
+	noBorder bool
 
 	// address is private so that it can only be set if a corresponding entry in Boxer.ModelMap is created (see CreateLeaf)
 	address string
@@ -130,6 +135,9 @@ func (n *Node) renderVertical(modelMap map[string]tea.Model) []string {
 		for c := 0; c < child.height-len(lines); c++ {
 			boxes = append(boxes, strings.Repeat(space, targetWidth))
 		}
+		if !n.noBorder {
+			boxes = append(boxes, strings.Repeat(verticalSeparator, targetWidth))
+		}
 	}
 	return boxes
 
@@ -177,7 +185,13 @@ func (n *Node) renderHorizontal(modelMap map[string]tea.Model) []string {
 			if lineWidth < boxWidth {
 				pad = strings.Repeat(space, boxWidth-lineWidth)
 			}
-			fullLine = append(fullLine, line, pad)
+			var border string
+			// if the border is requested skip the first iteration and then draw it in front
+			if !n.noBorder && i > 0 {
+				border = horizontalSeparator
+			}
+			fullLine = append(fullLine, border, line, pad)
+
 		}
 		allStr = append(allStr, strings.Join(fullLine, ""))
 	}
@@ -205,9 +219,23 @@ func (b *Boxer) UpdateSize(size tea.WindowSizeMsg) {
 // recursive setting of the height and width according to the orientation and the SizeFunc
 // or evenly if no SizeFunc is provided
 func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model) {
+	if !n.noBorder {
+		length := len(n.Children)
+		if length == 0 {
+			panic("the border attribute should not be set on a leaf or a node without children")
+		}
+		// subtract the space which is used by the border between the children
+		if n.VerticalStacked {
+			size.Height -= length - 1
+		} else {
+			size.Width -= length - 1
+		}
+	}
+
 	if size.Width <= 0 || size.Height <= 0 {
 		panic("wont set area to zero or negative")
 	}
+
 	n.width, n.height = size.Width, size.Height
 	if n.address != "" {
 		// is leaf
@@ -314,7 +342,10 @@ func (b *Boxer) CreateLeaf(address string, model tea.Model) Node {
 		b.ModelMap = make(map[string]tea.Model)
 	}
 	b.ModelMap[address] = model
-	return Node{address: address}
+	return Node{
+		address:  address,
+		noBorder: true,
+	}
 }
 
 // IsLeaf returns if the node is a leaf.
@@ -326,4 +357,17 @@ func (n *Node) IsLeaf() bool {
 // The address of a Node is only settable through CreateLeaf
 func (n *Node) GetAddress() string {
 	return n.address
+}
+
+// GetWidth returns the current with of this node
+func (n *Node) GetWidth() int { return n.width }
+
+// GetHeight returns the current with of this node
+func (n *Node) GetHeight() int { return n.height }
+
+// CreateNoBorderNode is a constructor for a Node which does not draw a Border around its children.
+// The Border attribute is private, because the changing of the attribute has to be accompanied with a change of size
+// of all its descendants and is not trivial to facilitate in a save manner.
+func CreateNoBorderNode() Node {
+	return Node{noBorder: true}
 }
