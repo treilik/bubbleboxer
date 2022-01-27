@@ -116,11 +116,14 @@ func (n *Node) renderVertical(modelMap map[string]tea.Model) []string {
 		panic("no children to render - this node should be a leaf or should not exist")
 	}
 	boxes := make([]string, 0, n.height)
-	targetWidth := n.width
-	for _, child := range n.Children {
+	targetWidth := n.Children[0].width
+	for i, child := range n.Children {
 		lines := child.render(modelMap)
 		if len(lines) > child.height {
 			panic("model has to much lines")
+		}
+		if !n.noBorder && i > 0 {
+			lines = append([]string{strings.Repeat(verticalSeparator, targetWidth)}, lines...)
 		}
 		// check for to wide lines and because we are on it, pad them to correct width.
 		for _, line := range lines {
@@ -148,12 +151,12 @@ func (n *Node) renderHorizontal(modelMap map[string]tea.Model) []string {
 	}
 	//            y  x
 	var joinedStr [][]string
-	targetHeigth := n.height
+	targetHeigth := n.Children[0].height
 
-	// bring all to same height if they are smaller
+	// bring all to same height if they are smaller then there own size
 	for _, boxer := range n.Children {
-		if targetHeigth < boxer.height {
-			panic("inconsistent size information: child is bigger than parent")
+		if targetHeigth != boxer.height {
+			panic("inconsistent size information: all children should have the same height when horizontal arranged but did not")
 		}
 
 		lines := boxer.render(modelMap)
@@ -185,15 +188,14 @@ func (n *Node) renderHorizontal(modelMap map[string]tea.Model) []string {
 			if lineWidth < boxWidth {
 				pad = strings.Repeat(space, boxWidth-lineWidth)
 			}
-			var border string
-			// if the border is requested skip the first iteration and then draw it in front
-			if !n.noBorder && i > 0 {
-				border = horizontalSeparator
-			}
-			fullLine = append(fullLine, border, line, pad)
-
+			fullLine = append(fullLine, line+pad)
 		}
-		allStr = append(allStr, strings.Join(fullLine, ""))
+		var border string
+		if !n.noBorder {
+			border = horizontalSeparator
+		}
+
+		allStr = append(allStr, strings.Join(fullLine, border))
 	}
 	return allStr
 
@@ -219,6 +221,14 @@ func (b *Boxer) UpdateSize(size tea.WindowSizeMsg) {
 // recursive setting of the height and width according to the orientation and the SizeFunc
 // or evenly if no SizeFunc is provided
 func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model) {
+	if size.Width <= 0 || size.Height <= 0 {
+		panic("wont set area to zero or negative")
+	}
+
+	// set size before it may be reduced according to the border
+	n.width, n.height = size.Width, size.Height
+
+	// reduce size for children if border is set
 	if !n.noBorder {
 		length := len(n.Children)
 		if length == 0 {
@@ -232,11 +242,6 @@ func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model)
 		}
 	}
 
-	if size.Width <= 0 || size.Height <= 0 {
-		panic("wont set area to zero or negative")
-	}
-
-	n.width, n.height = size.Width, size.Height
 	if n.address != "" {
 		// is leaf
 		if len(n.Children) != 0 {
@@ -309,6 +314,7 @@ func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model)
 	var heightSum, widthSum int
 	for i, c := range n.Children {
 		s := sizeList[i]
+
 		c.updateSize(s, modelMap)
 		n.Children[i] = c
 
