@@ -116,8 +116,13 @@ func (n *Node) renderVertical(modelMap map[string]tea.Model) []string {
 		panic("no children to render - this node should be a leaf or should not exist")
 	}
 	boxes := make([]string, 0, n.height)
+
 	targetWidth := n.Children[0].width
+
 	for i, child := range n.Children {
+		if child.width != targetWidth {
+			panic("inconsistent size information: all children should have the same width when vertical arranged but did not")
+		}
 		lines := child.render(modelMap)
 		if len(lines) > child.height {
 			panic("model has to much lines")
@@ -272,14 +277,14 @@ func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model)
 		height := size.Height
 
 		// hold division remainder (rest)
-		restWidth := n.width % length
+		restWidth := size.Width % length
 		var restHeight int
 
 		if n.VerticalStacked {
 			width = size.Width
 			height = size.Height / length
 
-			restHeight = n.height % length
+			restHeight = size.Height % length
 			restWidth = 0
 		}
 
