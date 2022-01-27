@@ -11,8 +11,8 @@ import (
 const (
 	newline             = "\n"
 	space               = " "
-	horizontalSeparator = "|"
-	verticalSeparator   = "-"
+	horizontalSeparator = "│"
+	verticalSeparator   = "─"
 )
 
 // Boxer is a way to render multiple tea.Model's in a specific layout

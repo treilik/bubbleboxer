@@ -27,6 +27,12 @@ func TestCreateLeaf(t *testing.T) {
 }
 
 func TestRenderValidTree(t *testing.T) {
+	deferFunc := func() {
+		if p := recover(); p != nil {
+			t.Errorf("A valid tree should not panic when rendering, but did with: %s", p)
+		}
+	}
+	defer deferFunc()
 	b := Boxer{}
 	b.LayoutTree = Node{
 		Children: []Node{
@@ -68,12 +74,6 @@ func TestRenderValidTree(t *testing.T) {
 	}
 	b.UpdateSize(tea.WindowSizeMsg{Width: 17, Height: 22})
 	b.View()
-	deferFunc := func() {
-		if p := recover(); p != nil {
-			t.Errorf("A valid tree should not panic when rendering, but did with: %s", p)
-		}
-	}
-	defer deferFunc()
 }
 
 func TestMsgHandling(t *testing.T) {
