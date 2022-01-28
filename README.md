@@ -8,25 +8,24 @@ Each leaf is linked (via an address) to one Model which satisfies the [bubbletea
 With this address one can access this Models and change them independently from the layout-tree.
 
 ```
-╭l1────────────────────╮╭l2────────╮╭l3────────╮
-│ 1╭>list of something ││ some   0 ││ a        │               V
-│  │ ----------------- ││ status 1 ││  text    │              / \
-│ 2├ which you may     ││ infor- 2 ││   logo   │             /   \
-│  │ edit as you wish  ││ mation 4 ││    even! │            H    l5
-│ 3├ or just use it    │╰──────────╯╰──────────╯           / \
-│ 4├ to display        │╭l4────────────────────╮          /   \
-│ 5├ and scroll        ││ Maybe here is a      │         l1    V
-│                      ││ note written to each │              / \
-│                      ││ list entry, in a     │             /   \
-│                      ││ bubbles viewport.    │            H    l4
-│                      ││                      │           / \
-╰──────────────────────╯╰──────────────────────╯          /   \
-╭l5────────────────────────────────────────────╮         l2   l3
-│ maybe a progressbar or a command input? 100% │
-╰──────────────────────────────────────────────╯
-```
+ 1╭>list of something │ some    0 │ a                       V
+  │ ----------------- │ status  1 │  text                  / \
+ 2├ which you may     │ infor-  2 │   logo                /   \
+  │ edit as you wish  │ mation  4 │    even!             H    l5
+ 3├ or just use it    │           │                     / \
+ 4├ to display        │ l2        │ l3                 /   \
+ 5├ and scroll        │──────────────────────         l1    V
+                      │ Maybe here is a                    / \
+                      │ note written to each              /   \
+                      │ list entry, in a                 H    l4
+                      │ bubbles viewport.               / \
+                      │                                /   \
+ l1                   │ l4                            l2   l3
+─────────────────────────────────────────────
+ maybe a progressbar or a command input? 100% 
 
-The borders of the boxes are not yet part of bubbleboxer.
+ l5
+```
 
 ## LICENSE
 
