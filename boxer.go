@@ -8,11 +8,17 @@ import (
 	"github.com/muesli/ansi"
 )
 
-const (
-	newline             = "\n"
-	space               = " "
-	horizontalSeparator = "│"
-	verticalSeparator   = "─"
+var (
+	// NEWLINE is used to separat the lines
+	NEWLINE = "\n"
+	// SPACE is used to fill up the lines, make sure it is only one column wide and a single character
+	SPACE = " "
+	// HorizontalSeparator is used to make a visible border between the horizontal arranged children
+	// in the layout-tree, make sure it is only one column wide and a single character
+	HorizontalSeparator = "│"
+	// VerticalSeparator is used to make a visible border between the vertical arranged children
+	// in the layout-tree, make sure it is only one column wide and a single character
+	VerticalSeparator = "─"
 )
 
 // Boxer is a way to render multiple tea.Model's in a specific layout
@@ -92,7 +98,7 @@ func (b Boxer) View() string {
 	if b.LayoutTree.width <= 0 || b.LayoutTree.height <= 0 {
 		return "waiting for size information"
 	}
-	return strings.Join(b.LayoutTree.render(b.ModelMap), newline)
+	return strings.Join(b.LayoutTree.render(b.ModelMap), NEWLINE)
 }
 
 // render recursively renders the layout tree with the models contained in ModelMap
@@ -103,7 +109,7 @@ func (n *Node) render(modelMap map[string]tea.Model) []string {
 		if !ok {
 			panic(fmt.Sprintf("address '%s' not found", n.address))
 		}
-		return strings.Split(v.View(), newline)
+		return strings.Split(v.View(), NEWLINE)
 	}
 
 	// is node
@@ -130,7 +136,7 @@ func (n *Node) renderVertical(modelMap map[string]tea.Model) []string {
 			panic("model has to much lines")
 		}
 		if !n.noBorder && i > 0 {
-			lines = append([]string{strings.Repeat(verticalSeparator, targetWidth)}, lines...)
+			lines = append([]string{strings.Repeat(VerticalSeparator, targetWidth)}, lines...)
 		}
 		// check for to wide lines and because we are on it, pad them to correct width.
 		for _, line := range lines {
@@ -138,12 +144,12 @@ func (n *Node) renderVertical(modelMap map[string]tea.Model) []string {
 			if lineWidth > targetWidth {
 				panic("to long line")
 			}
-			line += strings.Repeat(space, targetWidth-lineWidth)
+			line += strings.Repeat(SPACE, targetWidth-lineWidth)
 		}
 		boxes = append(boxes, lines...)
 		// add more lines to boxes to match the Height of the child-box
 		for c := 0; c < child.height-len(lines); c++ {
-			boxes = append(boxes, strings.Repeat(space, targetWidth))
+			boxes = append(boxes, strings.Repeat(SPACE, targetWidth))
 		}
 	}
 	return boxes
@@ -190,13 +196,13 @@ func (n *Node) renderHorizontal(modelMap map[string]tea.Model) []string {
 			}
 			var pad string
 			if lineWidth < boxWidth {
-				pad = strings.Repeat(space, boxWidth-lineWidth)
+				pad = strings.Repeat(SPACE, boxWidth-lineWidth)
 			}
 			fullLine = append(fullLine, line+pad)
 		}
 		var border string
 		if !n.noBorder {
-			border = horizontalSeparator
+			border = HorizontalSeparator
 		}
 
 		allStr = append(allStr, strings.Join(fullLine, border))
