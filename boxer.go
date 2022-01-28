@@ -45,8 +45,10 @@ type Node struct {
 	// VerticalStacked specifies the orientation of the Children to each other
 	VerticalStacked bool
 
-	// SizeFunc specifies the size provided to each child
-	SizeFunc func(node Node, msg tea.WindowSizeMsg) []tea.WindowSizeMsg
+	// SizeFunc specifies the width or height (depending on the orientation) provided to each child.
+	// Here by should the sum of the returned int's be the same as the argument 'widthOrHeight'.
+	// The length of the returned slice should be the same as the amount of children of the node argument.
+	SizeFunc func(node Node, widthOrHeight int) []int
 
 	// noBorder is private because when it changes, the descendants size has to be changed as well
 	noBorder bool
@@ -309,19 +311,25 @@ func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model)
 	}
 
 	// has SizeFunc so split the space according to it
-	sizeList := n.SizeFunc(*n, size)
+	var sizeList []int
+	if n.VerticalStacked {
+		sizeList = n.SizeFunc(*n, size.Height)
+	} else {
+		sizeList = n.SizeFunc(*n, size.Width)
+	}
 	if len(sizeList) != len(n.Children) {
 		panic(fmt.Sprintf("SizeFunc returned %d WindowSizeMsg's but want one for each child and thus: %d", len(sizeList), len(n.Children)))
 	}
 	var heightSum, widthSum int
 	for i, c := range n.Children {
-		s := sizeList[i]
+		// set fixed dimension
+		s := size
 
-		// overwrite the dimension which should be fixed
+		// change variable dimension according to orientation and the SizeFunc
 		if n.VerticalStacked {
-			s.Width = size.Width
+			s.Height = sizeList[i]
 		} else {
-			s.Height = size.Height
+			s.Width = sizeList[i]
 		}
 
 		c.updateSize(s, modelMap)

@@ -39,10 +39,10 @@ func TestRenderValidTree(t *testing.T) {
 			{Children: []Node{
 				{
 					VerticalStacked: true,
-					SizeFunc: func(_ Node, size tea.WindowSizeMsg) []tea.WindowSizeMsg {
-						return []tea.WindowSizeMsg{
-							{Height: 1, Width: size.Width},
-							{Height: size.Height - 1, Width: size.Width},
+					SizeFunc: func(_ Node, widthOrHeight int) []int {
+						return []int{
+							1,
+							widthOrHeight - 1,
 						}
 					},
 					Children: []Node{
@@ -59,10 +59,10 @@ func TestRenderValidTree(t *testing.T) {
 				b.CreateLeaf("1", testModel("1")),
 			}},
 			{
-				SizeFunc: func(_ Node, size tea.WindowSizeMsg) []tea.WindowSizeMsg {
-					return []tea.WindowSizeMsg{
-						{Height: size.Height, Width: 1},
-						{Height: size.Height, Width: size.Width - 1},
+				SizeFunc: func(_ Node, widthOrHeight int) []int {
+					return []int{
+						1,
+						widthOrHeight - 1,
 					}
 				},
 				Children: []Node{

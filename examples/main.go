@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	tea "github.com/charmbracelet/bubbletea"
 	boxer "github.com/treilik/bubbleboxer"
 )
@@ -18,7 +20,7 @@ func main() {
 	middle := stringer(middleAddr)
 	right := stringer(rightAddr)
 
-	lower := stringer(lowerAddr)
+	lower := stringer(fmt.Sprintf("%s: use ctrl+c to quit", lowerAddr))
 
 	// layout-tree defintion
 	m := model{tui: boxer.Boxer{}}
@@ -26,12 +28,12 @@ func main() {
 		// orientation
 		VerticalStacked: true,
 		// spacing
-		SizeFunc: func(_ boxer.Node, msg tea.WindowSizeMsg) []tea.WindowSizeMsg {
-			return []tea.WindowSizeMsg{
-				// make sure to only change one of Height or Width depending on the orientation
-				{Height: msg.Height - 1, Width: msg.Width},
-				{Height: 1, Width: msg.Width},
-				// make also sure that the amount of the returned WindowSizeMsg's match the amount of children:
+		SizeFunc: func(_ boxer.Node, widthOrHeight int) []int {
+			return []int{
+				// since this node is vertical stacked return the height partioning since the width stays for all children fixed
+				widthOrHeight - 1,
+				1,
+				// make also sure that the amount of the returned ints match the amount of children:
 				// in this case two, but in more complex cases read the amount of the chilren from the len(boxer.Node.Children)
 			}
 		},
@@ -48,7 +50,11 @@ func main() {
 		},
 	}
 	p := tea.NewProgram(m)
-	p.Start()
+	p.EnterAltScreen()
+	if err := p.Start(); err != nil {
+		fmt.Println(err)
+	}
+	p.ExitAltScreen()
 }
 
 type model struct {
