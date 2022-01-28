@@ -317,7 +317,12 @@ func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model)
 	for i, c := range n.Children {
 		s := sizeList[i]
 
-		// TODO correct static size according to orientation
+		// overwrite the dimension which should be fixed
+		if n.VerticalStacked {
+			s.Width = size.Width
+		} else {
+			s.Height = size.Height
+		}
 
 		c.updateSize(s, modelMap)
 		n.Children[i] = c
@@ -331,10 +336,10 @@ func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model)
 	}
 
 	// the sum of the children size can not be bigger what the parent provided
-	if n.VerticalStacked && heightSum > size.Height { // TODO account for border
+	if n.VerticalStacked && heightSum > size.Height {
 		panic("SizeFunc spread more height than it can")
 	}
-	if widthSum > size.Width { // TODO account for border
+	if widthSum > size.Width {
 		panic("SizeFunc spread more width than it can")
 	}
 }
