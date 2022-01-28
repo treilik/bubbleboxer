@@ -143,9 +143,6 @@ func (n *Node) renderVertical(modelMap map[string]tea.Model) []string {
 		for c := 0; c < child.height-len(lines); c++ {
 			boxes = append(boxes, strings.Repeat(space, targetWidth))
 		}
-		if !n.noBorder {
-			boxes = append(boxes, strings.Repeat(verticalSeparator, targetWidth))
-		}
 	}
 	return boxes
 
@@ -333,11 +330,11 @@ func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model)
 		widthSum += s.Width
 	}
 
-	// the sum of the children size can not be bigger than the parent size
-	if n.VerticalStacked && heightSum > n.height { // TODO account for border
+	// the sum of the children size can not be bigger what the parent provided
+	if n.VerticalStacked && heightSum > size.Height { // TODO account for border
 		panic("SizeFunc spread more height than it can")
 	}
-	if widthSum > n.width { // TODO account for border
+	if widthSum > size.Width { // TODO account for border
 		panic("SizeFunc spread more width than it can")
 	}
 }
