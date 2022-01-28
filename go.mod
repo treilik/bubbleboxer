@@ -5,7 +5,6 @@ go 1.17
 require (
 	github.com/charmbracelet/bubbletea v0.19.3
 	github.com/muesli/ansi v0.0.0-20211018074035-2e021307bc4b
-	github.com/treilik/bubblesgum v0.0.0-20210928223729-0cf7bf20a72e
 )
 
 require (
