@@ -66,6 +66,9 @@ type Node struct {
 	height int
 }
 
+// SizeError conveys that for at leased one node or leaf in the Layout-tree there was not enough space left
+type SizeError error
+
 // Init satisfies the tea.Model interface
 func (b Boxer) Init() tea.Cmd { return nil }
 
@@ -121,7 +124,7 @@ func (n *Node) render(modelMap map[string]tea.Model) []string {
 
 func (n *Node) renderVertical(modelMap map[string]tea.Model) []string {
 	if len(n.Children) == 0 {
-		panic("no children to render - this node should be a leaf or should not exist")
+		panic("no children to render - this node should be a leaf (see CreateLeaf) or it should not exist")
 	}
 	boxes := make([]string, 0, n.height)
 
@@ -212,29 +215,22 @@ func (n *Node) renderHorizontal(modelMap map[string]tea.Model) []string {
 }
 
 // UpdateSize set the width and height of all Node's
-// panics if
-//   - the area (width*height) is <= 0
+// returns SizeError if the area (width*height) is less or equal to zero for any node or leaf
 //
+// panics if
 //   - a leaf has children
 //   - a leaf has a address without a model in the ModelMap (because it was deleted)
 //   - a Node (not a leaf) has no Children
 //
 //   - the SizeFunc returned a slice with different length compared to the size of the Children
-//   - the combined area of the children WindowSizeMsg's is greater than the parent area.
-func (b *Boxer) UpdateSize(size tea.WindowSizeMsg) {
-	if size.Width <= 0 || size.Height <= 0 {
-		panic("wont set area to zero or negative")
-	}
-	b.LayoutTree.updateSize(size, b.ModelMap)
+//   - the combined space returned by the SizeFunc is greater than the provided size
+func (b *Boxer) UpdateSize(size tea.WindowSizeMsg) error {
+	return b.LayoutTree.updateSize(size, b.ModelMap)
 }
 
 // recursive setting of the height and width according to the orientation and the SizeFunc
 // or evenly if no SizeFunc is provided
-func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model) {
-	if size.Width <= 0 || size.Height <= 0 {
-		panic("wont set area to zero or negative")
-	}
-
+func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model) error {
 	// set size before it may be reduced according to the border
 	n.width, n.height = size.Width, size.Height
 
@@ -252,6 +248,14 @@ func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model)
 		}
 	}
 
+	// check the size after it was reduced
+	if size.Width <= 0 || size.Height <= 0 {
+		// this returns a error since it is expected that the size might change to to small
+		// and return this as a error makes it clear that it is also expected that the calling code has to change the layout
+		// according to the size-change or display an alternative message till the size is big enough again.
+		return SizeError(fmt.Errorf("not enough space for at least one node or leaf in the Layout-tree"))
+	}
+
 	if n.address != "" {
 		// is leaf
 		if len(n.Children) != 0 {
@@ -265,7 +269,7 @@ func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model)
 		// tell model its size
 		v, _ = v.Update(tea.WindowSizeMsg{Width: size.Width, Height: size.Height})
 		modelMap[n.address] = v
-		return
+		return nil
 	}
 
 	// is node
@@ -313,7 +317,7 @@ func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model)
 			)
 			n.Children[i] = c
 		}
-		return
+		return nil
 	}
 
 	// has SizeFunc so split the space according to it
@@ -356,6 +360,7 @@ func (n *Node) updateSize(size tea.WindowSizeMsg, modelMap map[string]tea.Model)
 	if widthSum > size.Width {
 		panic("SizeFunc spread more width than it can")
 	}
+	return nil
 }
 
 // CreateLeaf is the only way to create a Node which is treated as a Leaf in the layout-tree.
