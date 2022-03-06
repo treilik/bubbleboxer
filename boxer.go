@@ -69,6 +69,9 @@ type Node struct {
 // SizeError conveys that for at leased one node or leaf in the Layout-tree there was not enough space left
 type SizeError error
 
+// NotFoundError convey that the address was not found.
+type NotFoundError error
+
 // Init satisfies the tea.Model interface
 func (b Boxer) Init() tea.Cmd { return nil }
 
@@ -380,6 +383,26 @@ func (b *Boxer) CreateLeaf(address string, model tea.Model) Node {
 		address:  address,
 		noBorder: true,
 	}
+}
+
+// EditLeaf is a saver way to interact with the Leafs,
+// since it can not be forgotten to save back the Model after changing.
+// If the editFunc returns an error the Model is not saved.
+func (b *Boxer) EditLeaf(address string, editFunc func(*tea.Model) error) error {
+	model, ok := b.ModelMap[address]
+	if !ok {
+		return NotFoundError(fmt.Errorf("address '%s' not found"))
+	}
+
+	err := editFunc(&model)
+	// discard if change if error
+	if err != nil {
+		return err
+	}
+
+	// accept change
+	b.ModelMap[address] = model
+	return nil
 }
 
 // IsLeaf returns if the node is a leaf.
