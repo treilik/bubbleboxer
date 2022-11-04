@@ -27,6 +27,8 @@ With this address one can access this Models and change them independently from 
  l5
 ```
 
+// TODO write about the need for embedding boxer into a other model and about nobordernodes beeing non recursive
+
 ## LICENSE
 
 MIT

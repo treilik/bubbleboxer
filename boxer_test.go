@@ -14,7 +14,10 @@ func (t testModel) View() string                        { return string(t) }
 
 func TestCreateLeaf(t *testing.T) {
 	b := Boxer{}
-	leaf := b.CreateLeaf("test", testModel("test"))
+	leaf, err := b.CreateLeaf("test", testModel("test"))
+	if err != nil {
+		t.Error(err)
+	}
 	if _, ok := b.ModelMap["test"]; !ok {
 		t.Error("after a leaf was created it should be in ModelMap")
 	}
@@ -46,17 +49,17 @@ func TestRenderValidTree(t *testing.T) {
 						}
 					},
 					Children: []Node{
-						b.CreateLeaf("1", testModel("1")),
+						stripErr(b.CreateLeaf("1", testModel("1"))),
 						{
 							VerticalStacked: true,
 							Children: []Node{
-								b.CreateLeaf("1", testModel("1")),
-								b.CreateLeaf("1", testModel("1")),
+								stripErr(b.CreateLeaf("1", testModel("1"))),
+								stripErr(b.CreateLeaf("1", testModel("1"))),
 							},
 						},
 					},
 				},
-				b.CreateLeaf("1", testModel("1")),
+				stripErr(b.CreateLeaf("1", testModel("1"))),
 			}},
 			{
 				SizeFunc: func(_ Node, widthOrHeight int) []int {
@@ -66,14 +69,23 @@ func TestRenderValidTree(t *testing.T) {
 					}
 				},
 				Children: []Node{
-					b.CreateLeaf("1", testModel("1")),
-					b.CreateLeaf("1", testModel("1")),
+					stripErr(b.CreateLeaf("1", testModel("1"))),
+					stripErr(b.CreateLeaf("1", testModel("1"))),
 				},
 			},
 		},
 	}
-	b.UpdateSize(tea.WindowSizeMsg{Width: 17, Height: 22})
+	err := b.UpdateSize(tea.WindowSizeMsg{Width: 17, Height: 22})
+	if err != nil {
+		t.Error(err)
+	}
 	b.View()
+}
+func stripErr(n Node, err error) Node {
+	if err != nil {
+		panic(err)
+	}
+	return n
 }
 
 func TestMsgHandling(t *testing.T) {
@@ -85,13 +97,14 @@ func TestMsgHandling(t *testing.T) {
 	defer deferFunc()
 
 	b := Boxer{}
-	b.HandleMsg = true
-	b.LayoutTree = b.CreateLeaf("test", testModel("test"))
+	b.LayoutTree, _ = b.CreateLeaf("test", testModel("test"))
 
 	deferFunc = func() {
 		if p := recover(); p != nil {
 			t.Errorf("when HandleMsg is true Update should not panic, but did: '%s'", p)
 		}
 	}
+	defer deferFunc()
+
 	b.Update(tea.WindowSizeMsg{Width: 17, Height: 17})
 }

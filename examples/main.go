@@ -42,16 +42,16 @@ func main() {
 			}
 		},
 		Children: []boxer.Node{
-			m.tui.CreateLeaf(upperAddr, upper),
+			stripErr(m.tui.CreateLeaf(upperAddr, upper)),
 			{
 				Children: []boxer.Node{
 					// make sure to encapsulate the models into a leaf with CreateLeaf:
-					m.tui.CreateLeaf(leftAddr, left),
-					m.tui.CreateLeaf(middleAddr, middle),
-					m.tui.CreateLeaf(rightAddr, right),
+					stripErr(m.tui.CreateLeaf(leftAddr, left)),
+					stripErr(m.tui.CreateLeaf(middleAddr, middle)),
+					stripErr(m.tui.CreateLeaf(rightAddr, right)),
 				},
 			},
-			m.tui.CreateLeaf(lowerAddr, lower),
+			stripErr(m.tui.CreateLeaf(lowerAddr, lower)),
 		},
 	}
 	p := tea.NewProgram(m)
@@ -60,6 +60,10 @@ func main() {
 		fmt.Println(err)
 	}
 	p.ExitAltScreen()
+}
+
+func stripErr(n boxer.Node, _ error) boxer.Node {
+	return n
 }
 
 type model struct {
@@ -98,7 +102,7 @@ func (m *model) editModel(addr string, edit func(tea.Model) (tea.Model, error)) 
 	}
 	v, ok := m.tui.ModelMap[addr]
 	if !ok {
-		fmt.Errorf("no model with address '%s' found", addr)
+		return fmt.Errorf("no model with address '%s' found", addr)
 	}
 	v, err := edit(v)
 	if err != nil {
