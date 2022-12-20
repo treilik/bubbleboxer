@@ -105,7 +105,16 @@ func (n *Node) render(modelMap map[string]tea.Model) ([]string, error) {
 		if !ok {
 			return nil, fmt.Errorf("model for leaf with address: '%s' not found", n.address)
 		}
-		return strings.Split(v.View(), NEWLINE), nil
+		leaf := strings.Split(v.View(), NEWLINE)
+		if len(leaf) > n.height {
+			return leaf, fmt.Errorf("expecting less or equal to %d lines, but the Model with address '%s' has returned to much lines: %d", n.height, n.address, len(leaf))
+		}
+		for _, line := range leaf {
+			if lineWidth := ansi.PrintableRuneWidth(line); lineWidth > n.width {
+				return leaf, fmt.Errorf("expecting less or equal to %d character width of all lines, but the Model with address '%s' has returned a to long line with %d characters:%s'%s'", n.width, n.address, lineWidth, NEWLINE, line)
+			}
+		}
+		return leaf, nil
 	}
 
 	// is node

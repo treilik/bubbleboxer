@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	boxer "github.com/treilik/bubbleboxer"
 )
@@ -20,7 +21,9 @@ func main() {
 	// leaf content creation (models)
 	upper := spinnerHolder{spinner.NewModel()}
 	left := stringer(leftAddr)
-	middle := stringer(middleAddr)
+	v := viewport.New(0, 0)
+	v.SetContent("foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo")
+	middle := viewPortHolder{v}
 	right := stringer(rightAddr)
 
 	lower := stringer(fmt.Sprintf("%s: use ctrl+c to quit", lowerAddr))
@@ -137,4 +140,26 @@ func (s spinnerHolder) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 func (s spinnerHolder) View() string {
 	return s.m.View()
+}
+
+type viewPortHolder struct {
+	m viewport.Model
+}
+
+func (v viewPortHolder) Init() tea.Cmd {
+	return nil
+}
+func (v viewPortHolder) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	size, ok := msg.(tea.WindowSizeMsg)
+	if ok {
+		v.m.Width = size.Width
+		v.m.Height = size.Height
+		return v, nil
+	}
+	m, cmd := v.m.Update(msg)
+	v.m = m
+	return v, cmd
+}
+func (v viewPortHolder) View() string {
+	return v.m.View()
 }
