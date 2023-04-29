@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	boxer "github.com/treilik/bubbleboxer"
 )
@@ -20,7 +21,9 @@ func main() {
 	// leaf content creation (models)
 	upper := spinnerHolder{spinner.NewModel()}
 	left := stringer(leftAddr)
-	middle := stringer(middleAddr)
+	v := viewport.New(0, 0)
+	v.SetContent("foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo")
+	middle := viewPortHolder{v}
 	right := stringer(rightAddr)
 
 	lower := stringer(fmt.Sprintf("%s: use ctrl+c to quit", lowerAddr))
@@ -42,16 +45,16 @@ func main() {
 			}
 		},
 		Children: []boxer.Node{
-			m.tui.CreateLeaf(upperAddr, upper),
+			stripErr(m.tui.CreateLeaf(upperAddr, upper)),
 			{
 				Children: []boxer.Node{
 					// make sure to encapsulate the models into a leaf with CreateLeaf:
-					m.tui.CreateLeaf(leftAddr, left),
-					m.tui.CreateLeaf(middleAddr, middle),
-					m.tui.CreateLeaf(rightAddr, right),
+					stripErr(m.tui.CreateLeaf(leftAddr, left)),
+					stripErr(m.tui.CreateLeaf(middleAddr, middle)),
+					stripErr(m.tui.CreateLeaf(rightAddr, right)),
 				},
 			},
-			m.tui.CreateLeaf(lowerAddr, lower),
+			stripErr(m.tui.CreateLeaf(lowerAddr, lower)),
 		},
 	}
 	p := tea.NewProgram(m)
@@ -60,6 +63,10 @@ func main() {
 		fmt.Println(err)
 	}
 	p.ExitAltScreen()
+}
+
+func stripErr(n boxer.Node, _ error) boxer.Node {
+	return n
 }
 
 type model struct {
@@ -98,7 +105,7 @@ func (m *model) editModel(addr string, edit func(tea.Model) (tea.Model, error)) 
 	}
 	v, ok := m.tui.ModelMap[addr]
 	if !ok {
-		fmt.Errorf("no model with address '%s' found", addr)
+		return fmt.Errorf("no model with address '%s' found", addr)
 	}
 	v, err := edit(v)
 	if err != nil {
@@ -133,4 +140,26 @@ func (s spinnerHolder) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 func (s spinnerHolder) View() string {
 	return s.m.View()
+}
+
+type viewPortHolder struct {
+	m viewport.Model
+}
+
+func (v viewPortHolder) Init() tea.Cmd {
+	return nil
+}
+func (v viewPortHolder) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	size, ok := msg.(tea.WindowSizeMsg)
+	if ok {
+		v.m.Width = size.Width
+		v.m.Height = size.Height
+		return v, nil
+	}
+	m, cmd := v.m.Update(msg)
+	v.m = m
+	return v, cmd
+}
+func (v viewPortHolder) View() string {
+	return v.m.View()
 }
