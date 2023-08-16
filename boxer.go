@@ -152,7 +152,7 @@ func (n *Node) render(size tea.WindowSizeMsg) ([]string, error) {
 	return leaf, nil
 }
 
-func (n *Node) renderVertical(size tea.WindowSizeMsg) ([]string, error) {
+func (n *Node) VisibleChildren() []Node {
 	children := make([]Node, 0, len(n.Children))
 	for _, c := range n.Children {
 		if c.Hidden {
@@ -160,8 +160,16 @@ func (n *Node) renderVertical(size tea.WindowSizeMsg) ([]string, error) {
 		}
 		children = append(children, c)
 	}
+	return children
+}
+func (n *Node) renderHorizontal(size tea.WindowSizeMsg) ([]string, error) {
+	children := n.VisibleChildren()
 	if len(children) == 0 {
 		return nil, fmt.Errorf("no children to render - this node should be a leaf (see CreateLeaf) or it should not exist")
+	}
+
+	if !n.NoBorder {
+		size.Width -= len(children)
 	}
 
 	sizes, err := n.sizes(size)
@@ -169,31 +177,31 @@ func (n *Node) renderVertical(size tea.WindowSizeMsg) ([]string, error) {
 		return nil, err
 	}
 
-	all := make([]string, len(children))
+	all := make([]string, size.Height)
 
-	var border string
-	if !n.NoBorder {
-		border = VerticalSeparator
-	}
 	for i, boxer := range children {
 		lines, err := boxer.render(sizes[i])
 		if err != nil {
 			return lines, wrapError(i, n.VerticalStacked, err)
 		}
-		all[i] = fmt.Sprintf("%s%s%s", all[i], border, lines)
+		var border string
+		if i > 0 && !n.NoBorder {
+			border = HorizontalSeparator
+		}
+		for c, l := range lines {
+			all[c] = fmt.Sprintf("%s%s%s", all[c], border, l)
+		}
 	}
 	return all, nil
 }
-func (n *Node) renderHorizontal(size tea.WindowSizeMsg) ([]string, error) {
-	children := make([]Node, 0, len(n.Children))
-	for _, c := range n.Children {
-		if c.Hidden {
-			continue
-		}
-		children = append(children, c)
-	}
+func (n *Node) renderVertical(size tea.WindowSizeMsg) ([]string, error) {
+	children := n.VisibleChildren()
 	if len(children) == 0 {
 		return nil, fmt.Errorf("no children to render - this node should be a leaf (see CreateLeaf) or it should not exist")
+	}
+
+	if !n.NoBorder {
+		size.Height -= len(children)
 	}
 
 	sizes, err := n.sizes(size)
@@ -209,7 +217,7 @@ func (n *Node) renderHorizontal(size tea.WindowSizeMsg) ([]string, error) {
 			return lines, wrapError(i, n.VerticalStacked, err)
 		}
 		if i > 0 && !n.NoBorder {
-			all = append(all, strings.Repeat(HorizontalSeparator, size.Width))
+			all = append(all, strings.Repeat(VerticalSeparator, size.Width))
 		}
 		all = append(all, lines...)
 	}
@@ -303,7 +311,10 @@ func (b *Boxer) CreateLeaf(address string, model tea.Model) (Node, error) {
 // EditNodes is called recursivly (after editing) on every node
 // if an error occures calling is aborted and the error returned
 func (b *Boxer) EditNodes(editFunc func(*Node) error) error {
-	return b.LayoutTree.editNodes(editFunc)
+	tmp := &b.LayoutTree
+	err := tmp.editNodes(editFunc)
+	b.LayoutTree = *tmp
+	return err
 }
 
 func (n *Node) editNodes(editFunc func(*Node) error) error {
@@ -311,13 +322,25 @@ func (n *Node) editNodes(editFunc func(*Node) error) error {
 	if err != nil {
 		return err
 	}
-	for _, c := range n.Children {
+	for i, c := range n.Children {
 		err := c.editNodes(editFunc)
 		if err != nil {
 			return err
 		}
+		n.Children[i] = c
 	}
 	return nil
+}
+func (b *Boxer) GetModel(address string) (tea.Model, error) {
+	var tmp tea.Model
+	err := b.EditModel(address, func(m tea.Model) (tea.Model, error) {
+		if tmp != nil {
+			return nil, fmt.Errorf("multiple Models with same address '%s'", address)
+		}
+		tmp = m
+		return m, nil
+	})
+	return tmp, err
 }
 
 // EditModel edits the models with the given address according to the given funtion if it returns a model and no.
