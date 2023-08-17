@@ -100,14 +100,8 @@ func (b Boxer) View() string {
 }
 
 func even(n Node, widthOrHeight int) []int {
-	var visable int
-	for _, c := range n.Children {
-		if c.Hidden {
-			continue
-		}
-		visable++
-	}
-	rest := widthOrHeight - (widthOrHeight / visable)
+	visable := len(n.VisibleChildren())
+	rest := widthOrHeight % visable
 	sizes := make([]int, visable)
 	for c := 0; c < visable; c++ {
 		sizes[c] = widthOrHeight / visable
@@ -168,10 +162,6 @@ func (n *Node) renderHorizontal(size tea.WindowSizeMsg) ([]string, error) {
 		return nil, fmt.Errorf("no children to render - this node should be a leaf (see CreateLeaf) or it should not exist")
 	}
 
-	if !n.NoBorder {
-		size.Width -= len(children)
-	}
-
 	sizes, err := n.sizes(size)
 	if err != nil {
 		return nil, err
@@ -200,16 +190,12 @@ func (n *Node) renderVertical(size tea.WindowSizeMsg) ([]string, error) {
 		return nil, fmt.Errorf("no children to render - this node should be a leaf (see CreateLeaf) or it should not exist")
 	}
 
-	if !n.NoBorder {
-		size.Height -= len(children)
-	}
-
 	sizes, err := n.sizes(size)
 	if err != nil {
 		return nil, err
 	}
 
-	all := make([]string, len(children))
+	all := make([]string, 0, len(children))
 
 	for i, boxer := range children {
 		lines, err := boxer.render(sizes[i])
@@ -259,16 +245,24 @@ func (n *Node) sizes(size tea.WindowSizeMsg) ([]tea.WindowSizeMsg, error) {
 		sizeFunc = n.SizeFunc
 	}
 
-	// has SizeFunc so split the space according to it
-	var sizeList []int
+	var toSplit int
 	if n.VerticalStacked {
-		sizeList = sizeFunc(*n, size.Height)
+		toSplit = size.Height
 	} else {
-		sizeList = sizeFunc(*n, size.Width)
+		toSplit = size.Width
 	}
+	// has SizeFunc so split the space according to it
+	sizeList := sizeFunc(*n, toSplit)
 
 	if len(sizeList) != visibleChildren {
 		return nil, fmt.Errorf("SizeFunc returned %d WindowSizeMsg's but want one for each child and thus: %d", len(sizeList), visibleChildren)
+	}
+	var sum int
+	for _, s := range sizeList {
+		sum += s
+	}
+	if sum != toSplit {
+		return nil, fmt.Errorf("the size function should add up to %d but got a sum of %d", toSplit, sum)
 	}
 	sizes := make([]tea.WindowSizeMsg, visibleChildren)
 	for i, s := range sizes {
