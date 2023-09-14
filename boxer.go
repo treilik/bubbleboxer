@@ -56,6 +56,8 @@ type Node struct {
 	// SizeFunc specifies the width or height (depending on the orientation) provided to each child.
 	// Here by should the sum of the returned int's be the same as the argument 'widthOrHeight'.
 	// The length of the returned slice should be the same as the amount of children of the node argument.
+	// SizeFunc will only be called when the children amount is greater 1.
+	// If an returned entrie is zero the corisponding child while be hidden.
 	SizeFunc func(node Node, widthOrHeight int) []int
 }
 
@@ -92,7 +94,7 @@ func (b Boxer) View() string {
 	if b.lastSize.Width <= 0 || b.lastSize.Height <= 0 {
 		return "waiting for size information"
 	}
-	lines, err := b.LayoutTree.render(b.lastSize)
+	lines, err := b.LayoutTree.Render(b.lastSize)
 	if err != nil {
 		return err.Error()
 	}
@@ -113,8 +115,8 @@ func even(n Node, widthOrHeight int) []int {
 	return sizes
 }
 
-// render recursively renders the layout tree with the models contained in ModelMap
-func (n *Node) render(size tea.WindowSizeMsg) ([]string, error) {
+// Render recursively renders the layout tree
+func (n *Node) Render(size tea.WindowSizeMsg) ([]string, error) {
 	if n.Model == nil {
 		if n.VerticalStacked {
 			return n.renderVertical(size)
@@ -170,7 +172,10 @@ func (n *Node) renderHorizontal(size tea.WindowSizeMsg) ([]string, error) {
 	all := make([]string, size.Height)
 
 	for i, boxer := range children {
-		lines, err := boxer.render(sizes[i])
+		if sizes[i].Width == 0 {
+			continue
+		}
+		lines, err := boxer.Render(sizes[i])
 		if err != nil {
 			return lines, wrapError(i, n.VerticalStacked, err)
 		}
@@ -198,7 +203,10 @@ func (n *Node) renderVertical(size tea.WindowSizeMsg) ([]string, error) {
 	all := make([]string, 0, len(children))
 
 	for i, boxer := range children {
-		lines, err := boxer.render(sizes[i])
+		if sizes[i].Height <= 0 {
+			continue
+		}
+		lines, err := boxer.Render(sizes[i])
 		if err != nil {
 			return lines, wrapError(i, n.VerticalStacked, err)
 		}
@@ -306,18 +314,18 @@ func (b *Boxer) CreateLeaf(address string, model tea.Model) (Node, error) {
 // if an error occures calling is aborted and the error returned
 func (b *Boxer) EditNodes(editFunc func(*Node) error) error {
 	tmp := &b.LayoutTree
-	err := tmp.editNodes(editFunc)
+	err := tmp.EditNodes(editFunc)
 	b.LayoutTree = *tmp
 	return err
 }
 
-func (n *Node) editNodes(editFunc func(*Node) error) error {
+func (n *Node) EditNodes(editFunc func(*Node) error) error {
 	err := editFunc(n)
 	if err != nil {
 		return err
 	}
 	for i, c := range n.Children {
-		err := c.editNodes(editFunc)
+		err := c.EditNodes(editFunc)
 		if err != nil {
 			return err
 		}
