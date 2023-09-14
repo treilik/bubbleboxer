@@ -347,10 +347,22 @@ func (b *Boxer) GetModel(address string) (tea.Model, error) {
 
 // EditModel edits the models with the given address according to the given funtion if it returns a model and no.
 func (b *Boxer) EditModel(address string, editFunc func(tea.Model) (tea.Model, error)) error {
-	return b.EditNodes(func(n *Node) error {
+	return b.LayoutTree.EditModel(address, editFunc)
+}
+
+func (n *Node) EditModel(address string, editFunc func(tea.Model) (tea.Model, error)) error {
+	if editFunc == nil {
+		return fmt.Errorf("recieved nil editfunc")
+	}
+	var found bool
+	err := n.EditNodes(func(n *Node) error {
 		if n.Name != address {
 			return nil
 		}
+		if found {
+			return fmt.Errorf("multiple Models with same address '%s'", address)
+		}
+		found = true
 		m, err := editFunc(n.Model)
 		if err != nil {
 			return err
@@ -358,6 +370,32 @@ func (b *Boxer) EditModel(address string, editFunc func(tea.Model) (tea.Model, e
 		n.Model = m
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	if !found {
+		return fmt.Errorf("no node or model with address '%s' found", address)
+	}
+
+	return nil
+}
+
+func (n *Node) editModel(address string, editFunc func(tea.Model) (tea.Model, error)) (bool, error) {
+	if n.Name == address {
+		m, err := editFunc(n.Model)
+		if err != nil {
+			return true, err
+		}
+		n.Model = m
+		return true, nil
+	}
+	for _, c := range n.Children {
+		found, err := c.editModel(address, editFunc)
+		if err != nil {
+			return found, err
+		}
+	}
+	return false, nil
 }
 
 func wrapError(index int, vertical bool, toWrap error) error {
