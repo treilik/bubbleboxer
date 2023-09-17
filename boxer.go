@@ -334,6 +334,10 @@ func (n *Node) EditNodes(editFunc func(*Node) error) error {
 	return nil
 }
 func (b *Boxer) GetModel(address string) (tea.Model, error) {
+	return b.LayoutTree.GetModel(address)
+}
+
+func (b *Node) GetModel(address string) (tea.Model, error) {
 	var tmp tea.Model
 	err := b.EditModel(address, func(m tea.Model) (tea.Model, error) {
 		if tmp != nil {
